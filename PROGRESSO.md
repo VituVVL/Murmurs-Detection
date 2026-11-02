@@ -5,22 +5,12 @@ Datas: **checkpoint 05/11** · entrega 30/11 · apresentações 03/12 e 10/12.
 
 ---
 
-## 1. Estado do git (ler primeiro)
+## 1. Estado do git
 
-O último commit é `d23ac71 Estrutura de pastas, ainda vazias.` **Tudo o que está abaixo ainda não tem commit**:
-
-| Ficheiro | O que é |
-|---|---|
-| `pyproject.toml`, `uv.lock`, `.python-version` | ambiente Python (secção 3) |
-| `requirements.txt` (apagado) | substituído pelo `pyproject.toml` |
-| `src/data.py`, `src/metrics.py` | código partilhado (secções 5 e 6) |
-| `data/split.csv` | divisão treino/validação/teste (secção 6) |
-| `notebooks/01_exploracao_dados.ipynb` | exploração dos dados (secção 7) |
-| `.gitignore`, `README.md` | atualizados |
-| `.idea/Murmurs-Detection.iml`, `.idea/modules.xml` | o PyCharm atualizou-os sozinho ao detetar a `.venv` (normal) |
-| `PROGRESSO.md` | este ficheiro |
-
-O dataset (`data/circor/`) **não** vai para o git: está no `.gitignore`.
+- Tudo o que está descrito neste ficheiro já tem commit e push (commits "Atualizações iniciais.").
+- O ramo principal chama-se **`main`**. Antes chamava-se `master`, o nome que o Git para Windows põe por omissão;
+  foi renomeado antes de entrarem o Rodrigo e o Marvin.
+- O dataset (`data/circor/`) **não** vai para o git: está no `.gitignore`.
 
 ---
 
@@ -225,11 +215,10 @@ Já está executado: abre e vê os gráficos sem correr nada. Para correr de nov
 
 ## 9. Próximos passos
 
-1. **Commit** de tudo o que está na secção 1.
-2. Mostrar o notebook ao Rodrigo e ao Marvin; todos têm de saber explicar tudo no checkpoint (05/11).
-3. **Perguntar ao professor no checkpoint:**
+1. Mostrar o notebook ao Rodrigo e ao Marvin; todos têm de saber explicar tudo no checkpoint (05/11).
+2. **Perguntar ao professor no checkpoint:**
    - Os dados escondidos do bónus vão ter os ficheiros `.tsv` de segmentação? Se não, não podemos depender deles na previsão.
    - Usar `murmur_audible` (de `Murmur locations`) para rotular as gravações no treino é permitido? O guião diz para usar
      "só o rótulo Murmur", mas também refere o campo `Murmur locations`.
-4. Começar os modelos: um notebook para a CNN (`02_cnn.ipynb`) e outro para a RNN (`03_rnn.ipynb`), os dois a usar
+3. Começar os modelos: um notebook para a CNN (`02_cnn.ipynb`) e outro para a RNN (`03_rnn.ipynb`), os dois a usar
    `src/data.py` e `src/metrics.py`. Ter um primeiro modelo, mesmo simples, até ao checkpoint seria um bónus.
