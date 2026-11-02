@@ -1,0 +1,14 @@
+# Dataset (não vai para o git nem para a entrega)
+data/
+
+# Modelos treinados
+*.pt
+*.pth
+
+# Python / Jupyter
+__pycache__/
+.venv/
+.ipynb_checkpoints/
+
+# IDE
+.idea/workspace.xml

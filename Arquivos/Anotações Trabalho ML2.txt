@@ -1,0 +1,30 @@
+Trabalho ML2 - Prazo 30/11 - Checkpoint 05/11 - Apresentação 3 e 10/12
+
+Representação radio-frequencia(?), usar imagem para treinar uma CNN
+Mel-frequency cepstral coefficients (MFCC)
+Não faz sentido usar MLP para o raw cru e também não faz sentido usar com MLCCs diretamente, apenas se formos usar algo tipo a média da frequência da imagem
+Opinião: MLP não parece ser um bom classificador para esse trabalho
+
+A divisão treino-teste fica à nosso critério, mas será avaliado pelo professor. Não fazer batotas como colocar dados de teste no treino.
+
+Se fizermos algo que estiver demorando muito (a rodar), falar com o professor pra ver se é batota ou apenas limitação computacional
+Evaluation Metric: Matriz de confusão
+É mais grave dizer que alguém não tem doença quando tem do que dizer que tem quando não tem (qual valor é "melhor" errar)
+
+BONUS:
+
+No final do semestre, nos será disponibilizado uma parte do dataset que não temos, podemos usar o nosso melhor modelo para classificar essa parte do dataset e terá uma competição valendo até 1 ponto. Os 5 primeiros da competição ganham 1 ponto extra, do 6 ao 10 ganham 0,5.
+São dados recolhidos nas mesmas maquinas, mesmos locais(são do mesmo dataset, mas nos foram ocultados), mas são dados diferentes do que temos
+
+Submissão:
+Ficheiro zip com códigos (pode ser notebook ou apenas arquivos código)
+não submeter o dataset, o trabalho ficaria pesado e o professor já possui o dataset
+Apresentação de slide submetido em PDF, descrição no guião do projeto
+Um .csv com as previsões do bonus
+
+O Objetivo é tentar muitas coisas nessas 6 semanas e no fim decidir o que é mais importante para apresentar no trabalho, apresentação de 10 min
+As coisas importantes tem que ser detalhadas, mas não exceder no detalhe (ex: "treinei com lambda 1.1, agora com 1.12, agora 1.15, 1.2")
+
+Evitar fazer muito trabalho sozinho. Já houve grupos que integrantes não sabiam nem o que foi enviado no fim, pois uma pessoa fez sozinha e não houve diálogo.
+
+Avaliação não é por performance do algoritmo, só o bonus é. O mais importante é entender o trabalho e saber justificar de forma correta. Parecido com LabIACD.
