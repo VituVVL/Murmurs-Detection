@@ -100,7 +100,30 @@ from src.data import load_patients, load_recordings, load_split, load_audio, loa
 | `load_split()` | Lê `data/split.csv`: colunas `patient_id` e `subset` (`train` / `val` / `test`). |
 | `load_audio(path)` | Lê um `.wav` e devolve o sinal (float32, entre -1 e 1). Confirma que está a 4000 Hz. |
 | `load_segmentation(path)` | Lê um `.tsv`: colunas `start`, `end` (segundos) e `state` (0–4). |
-| `make_windows(sinal, window_s, hop_s)` | Corta o sinal em janelas de `window_s` segundos com passo `hop_s` (sem passo = sem sobreposição). A última janela é completada com zeros. Devolve um array `(n_janelas, amostras)`. Ex.: `make_windows(x, 5, 2.5)` dá janelas de 5 s com 50% de sobreposição. |
+| `make_windows(sinal, window_s, hop_s, pad_last)` | Corta o sinal em janelas de `window_s` segundos com passo `hop_s` (sem passo = sem sobreposição). Se a última janela ficar incompleta: com `pad_last=True` (por omissão) é completada com zeros; com `pad_last=False` recua para terminar no fim do sinal (sem zeros; é o que o pré-processamento usa). Devolve um array `(n_janelas, amostras)`. Ex.: `make_windows(x, 5, 2.5)` dá janelas de 5 s com 50% de sobreposição. |
+
+### `src/features.py`: pré-processamento comum aos modelos
+
+Justificação de cada escolha em `notebooks/02_preprocessamento.ipynb`.
+
+```python
+from src.features import build_features, fit_standardizer, standardize
+X_train, meta_train = build_features("train", kind="mel")    # "mel" (CNN) ou "mfcc" (RNN)
+X_val, meta_val = build_features("val", kind="mel")
+stats = fit_standardizer(X_train, "mel")                     # médias e desvios SÓ do treino
+X_train, X_val = standardize(X_train, stats), standardize(X_val, stats)
+```
+
+| Passo | Decisão |
+|---|---|
+| Amplitude | média 0, desvio 1 por gravação (`normalize_audio`); não pelo pico, porque a maioria das gravações tem picos saturados |
+| Janelas | 5 s, sem sobreposição, última recuada (sem zeros): 11 225 / 2 431 / 2 426 janelas (treino / validação / teste) |
+| CNN | log-mel-espectrograma `(n, 64, 313)`; acrescentar o canal com `X[:, None]` |
+| RNN | MFCC `(n, 313, 13)`: sequência de 313 instantes com 13 coeficientes |
+| Rótulo da janela | o do paciente (opção (a)); `meta` guarda paciente, local, gravação e `murmur_audible` |
+| Normalização das features | por banda mel / coeficiente MFCC, com médias e desvios só do treino |
+
+Calcular tudo demora ~1.5 min, por isso as features não são guardadas em disco.
 
 ### `murmur` vs. `murmur_audible` (importante)
 
@@ -222,3 +245,28 @@ Já está executado: abre e vê os gráficos sem correr nada. Para correr de nov
      "só o rótulo Murmur", mas também refere o campo `Murmur locations`.
 3. Começar os modelos: um notebook para a CNN (`02_cnn.ipynb`) e outro para a RNN (`03_rnn.ipynb`), os dois a usar
    `src/data.py` e `src/metrics.py`. Ter um primeiro modelo, mesmo simples, até ao checkpoint seria um bónus.
+
+### Ideias para as experiências
+
+- **Deltas do MFCC (RNN):** comparar só MFCC (13 por instante) com MFCC + Δ + ΔΔ (39 por instante).
+  Os deltas são a 1.ª e a 2.ª derivada de cada coeficiente no tempo: mostram se o espectro está a mudar
+  (ex.: início e fim de S1/S2, sopro a começar na sístole).
+  ```python
+  d1 = librosa.feature.delta(mfcc)            # (13, n_instantes); width=9 colunas ≈ 144 ms com hop_length=64
+  d2 = librosa.feature.delta(mfcc, order=2)
+  features = np.vstack([mfcc, d1, d2])        # (39, n_instantes)
+  ```
+  Uma RNN pode aprender a dinâmica sozinha, mas com poucos dados os deltas costumam ajudar. Escolher pela WA na validação.
+- **Normalizar cada coeficiente** (média 0, desvio 1, calculados só no treino) antes da RNN. As escalas são muito
+  diferentes: numa gravação, o coeficiente 0 do MFCC tem desvio ~43, os últimos ~5; o delta ~9 e o delta-delta ~5.
+- **Tamanho da janela do espectrograma** (`n_fft`): testar 256 (64 ms, 15,6 Hz), 512 (atual, 128 ms, 7,8 Hz) e
+  1024 (256 ms, 3,9 Hz). Janela maior = frequências mais nítidas, mas S1/S2 mais borrados no tempo.
+- **`fmax`:** com `fmax=1000` as 64 bandas mel ficam igualmente espaçadas (15,4 Hz cada), ou seja, é um espectrograma
+  linear. Testar `fmax=2000` (bandas de 26 a 52 Hz, mais detalhe nos graves).
+- **Seeds nos modelos:** fixar `torch.manual_seed(SEED)` e `np.random.seed(SEED)` para o treino ser reprodutível.
+- **Sobreposição de 50% nas janelas do treino** (`hop_s=2.5`): 27 335 janelas em vez de 16 082, uma forma simples de
+  *data augmentation*.
+- **Volume original como entrada extra:** a normalização apaga o volume, mas o *Present* e sobretudo o *Unknown* são,
+  em média, mais altos do que o *Absent* (notebook 02, secção 1). Testar dar `log10(desvio da gravação)` ao modelo.
+- **Pesos de classe calculados nas janelas:** nas janelas do treino o *Unknown* é só 4.8% (7% nos pacientes), porque os
+  pacientes *Unknown* têm menos gravações.

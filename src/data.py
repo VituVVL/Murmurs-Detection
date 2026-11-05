@@ -12,7 +12,7 @@ RECORDINGS_DIR = DATA_DIR / "training_data"
 SPLIT_FILE = ROOT / "data" / "split.csv"
 
 SAMPLE_RATE = 4000  # todas as gravações do CirCor estão a 4000 Hz
-SEED = 42
+SEED = 42   # a resposta para a vida
 
 
 def load_patients():
@@ -87,13 +87,22 @@ def load_segmentation(path):
     return pd.read_csv(path, sep="\t", header=None, names=["start", "end", "state"])
 
 
-def make_windows(signal, window_s, hop_s=None, sr=SAMPLE_RATE):
+def make_windows(signal, window_s, hop_s=None, sr=SAMPLE_RATE, pad_last=True):
     """Corta o sinal em janelas de `window_s` segundos, com passo `hop_s` (por omissão sem sobreposição).
 
-    A última janela é preenchida com zeros se ficar incompleta. Devolve um array (n_janelas, amostras).
+    Se a última janela ficar incompleta:
+    - pad_last=True: é preenchida com zeros;
+    - pad_last=False: é recuada para terminar no fim do sinal (sobrepõe-se à anterior, mas não tem zeros).
+      Só se aplica a sinais com pelo menos `window_s` segundos; os mais curtos são sempre preenchidos com zeros.
+    Devolve um array (n_janelas, amostras).
     """
     window = int(window_s * sr)
     hop = int((hop_s or window_s) * sr)
+    if not pad_last and len(signal) >= window:
+        starts = list(range(0, len(signal) - window + 1, hop))
+        if starts[-1] + window < len(signal):
+            starts.append(len(signal) - window)
+        return np.stack([signal[s:s + window] for s in starts])
     n_windows = max(1, int(np.ceil((len(signal) - window) / hop)) + 1)
     padded = np.zeros((n_windows - 1) * hop + window, dtype=signal.dtype)
     padded[:len(signal)] = signal

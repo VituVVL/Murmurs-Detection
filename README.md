@@ -41,4 +41,5 @@ Nos notebooks, para usar o código de `src/`:
 import sys; sys.path.append("..")
 from src.data import load_recordings, load_split, load_audio
 from src.metrics import weighted_accuracy, confusion_matrix
+from src.features import build_features, fit_standardizer, standardize   # pré-processamento (notebook 02)
 ```
