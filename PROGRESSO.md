@@ -1,6 +1,6 @@
 # Progresso do projeto
 
-Resumo do que foi feito em **02/11/2026**, das decisões tomadas e do que falta.
+Resumo do que foi feito (início a 02/11/2026; modelos desde 21/11, secção 9), das decisões tomadas e do que falta.
 Datas: **checkpoint 05/11** · entrega 30/11 · apresentações 03/12 e 10/12.
 
 ---
@@ -236,15 +236,59 @@ Já está executado: abre e vê os gráficos sem correr nada. Para correr de nov
 
 ---
 
-## 9. Próximos passos
+## 9. Modelos e experiências (desde 21/11)
 
-1. Mostrar o notebook ao Rodrigo e ao Marvin; todos têm de saber explicar tudo no checkpoint (05/11).
-2. **Perguntar ao professor no checkpoint:**
+### `src/training.py`: treino comum à CNN e à RNN
+
+Fica em `src/` porque a agregação e o critério de paragem têm de ser iguais nos dois modelos (WA comparáveis).
+
+| Função | O que faz |
+|---|---|
+| `set_seed()` | fixa as seeds do Python, numpy e torch (seed 42) |
+| `class_weights(meta_train)` | pesos da loss: `total / (3 × janelas da classe)` → Present 1.74, Unknown 6.94, Absent 0.44. *Peso × nº de janelas* é igual nas 3 classes |
+| `fit(...)` | Adam + CrossEntropy com pesos; early stopping pela **WA do paciente na validação** (paciência 8), fica a melhor época. `lr_plateau={...}` liga o `ReduceLROnPlateau` (sobre a loss da validação) |
+| `predict_proba(model, X)` | probabilidades por janela |
+| `patient_predictions(meta, probs)` | janela → gravação (média das probabilidades, `argmax`) → paciente (*Present* se alguma gravação for *Present*; senão *Unknown* se alguma for; senão *Absent*) |
+| `log_experiment(nome, descrição, history, patients)` | grava `results/<nome>_history.csv` e acrescenta uma linha a `results/experiencias.csv` |
+
+**Registo:** todas as experiências ficam em `results/experiencias.csv` (WA, recall por classe, melhor época,
+média da WA nas últimas 5 épocas, minutos). Os pesos (`*.pt`) não vão para o git; os CSV e PNG vão.
+
+### CNN (`notebooks/03_cnn.ipynb`)
+
+CNN 2D pequena (98 mil parâmetros): 4 blocos `Conv 3×3 → BatchNorm → ReLU → MaxPool` (16 → 32 → 64 → 128 filtros),
+*global average pooling*, dropout 0.3, 3 saídas. Entrada: log-mel `(1, 64, 313)`. ~95 s por época em CPU.
+
+| Experiência | O que muda | WA val (melhor época) | WA val (média últimas 5) | Present / Unknown / Absent | Épocas | Tempo |
+|---|---|---|---|---|---|---|
+| `cnn_baseline` | Adam lr 1e-3 fixo, wd 1e-4, batch 64 | **0.759** (ép. 25) | **0.686** | 22/27 · 4/10 · 83/105 | 33 | 54 min |
+| `cnn_plateau` | + `ReduceLROnPlateau` (×0.3 se a loss val não descer em 3 épocas) | 0.719 (ép. 11) | 0.644 | 22/27 · 6/10 · 66/105 | 19 | 29 min |
+
+**Baseline:** passa bem a referência de 0.499, mas o treino é **muito instável** (WA da validação entre 0.34 e 0.76 de
+época para época) e há *overfitting* a partir da época ~13 (loss de treino desce, a da validação sobe). O 0.759 é o pico
+de uma curva ruidosa, logo otimista. Nas janelas de pacientes *Present*, 69% são previstas *Present* quando o sopro é
+audível no local e só 18% quando não é.
+
+**`cnn_plateau`:** mais estável (WA 0.58–0.67 no fim, sem overfitting), mas **pior**. O lr foi reduzido cedo demais
+(época 10) porque a loss da validação quase não desce desde a época 1; chegou a 2.7e-5 e a rede deixou de aprender.
+Muitos mais *Absent* dados como *Unknown* (22 contra 7). As 9 primeiras épocas são iguais às da baseline (treino
+reprodutível). Diferenças de ~0.04 na WA são ~3 pacientes *Present*: com uma seed só, não são conclusivas.
+
+**Conclusão até aqui:** o problema principal é a **generalização**, não o lr. Próximas experiências na CNN:
+sobreposição de 50% nas janelas do treino, *data augmentation* (SpecAugment), rótulo `murmur_audible`.
+Se voltarmos ao scheduler, com `patience` maior (5–6).
+
+---
+
+## 10. Próximos passos
+
+1. Mostrar os notebooks ao Rodrigo e ao Marvin; todos têm de saber explicar tudo (checkpoint 05/11, apresentações).
+2. **Perguntar ao professor no checkpoint:** *(registar aqui as respostas)*
    - Os dados escondidos do bónus vão ter os ficheiros `.tsv` de segmentação? Se não, não podemos depender deles na previsão.
    - Usar `murmur_audible` (de `Murmur locations`) para rotular as gravações no treino é permitido? O guião diz para usar
      "só o rótulo Murmur", mas também refere o campo `Murmur locations`.
-3. Começar os modelos: um notebook para a CNN (`02_cnn.ipynb`) e outro para a RNN (`03_rnn.ipynb`), os dois a usar
-   `src/data.py` e `src/metrics.py`. Ter um primeiro modelo, mesmo simples, até ao checkpoint seria um bónus.
+3. Modelos: CNN em `03_cnn.ipynb` (começada, secção 9) e RNN em `04_rnn.ipynb` (por fazer), ambos com
+   `src/training.py`.
 
 ### Ideias para as experiências
 

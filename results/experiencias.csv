@@ -1,0 +1,3 @@
+experiencia,data,descricao,val_wa,val_accuracy,recall_Present,recall_Unknown,recall_Absent,melhor_epoca,epocas,wa_media_ultimas_5,minutos
+cnn_baseline,2026-11-21,"CNN 4 blocos, Adam lr 1e-3 fixo, wd 1e-4, batch 64, pesos de classe, ES WA pac. 8",0.759,0.768,0.815,0.4,0.79,25,33,0.686,53.9
+cnn_plateau,2026-11-21,"baseline + ReduceLROnPlateau na loss val (factor 0.3, patience 3, min 1e-5)",0.719,0.662,0.815,0.6,0.629,11,19,0.644,29.0
