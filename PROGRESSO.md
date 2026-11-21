@@ -287,6 +287,21 @@ Com uma só seed e 142 pacientes na validação, **o ruído da avaliação é do
 qual é melhor. Antes de mais experiências: repetir as melhores com 2–3 seeds e/ou escolher a época por um critério
 mais suave (loss da validação, WA média de 3 épocas). **CNN de referência: `cnn_baseline`.**
 
+### RNN (`notebooks/04_rnn.ipynb`)
+
+GRU bidirecional, 2 camadas × 64 unidades, dropout 0.3, *pooling* média + máximo no tempo (~106 mil parâmetros,
+como a CNN). Entrada: MFCC `(313, 13)` normalizado por coeficiente. Treino igual à `cnn_baseline`. ~2 min por época.
+
+| Experiência | O que muda | WA val (melhor época) | WA val (média últimas 5) | Present / Unknown / Absent | Épocas | Tempo |
+|---|---|---|---|---|---|---|
+| `rnn_baseline` | — | 0.693 (ép. 4) | 0.637 | 20/27 · 7/10 · 66/105 | 12 | 25 min |
+
+**RNN baseline:** passa a referência mas fica abaixo da CNN, exceto no *Unknown* (7/10, o melhor até agora). Treino
+mais calmo (loss da validação estável, pouco overfitting). O erro principal são os **28 *Absent* dados como *Unknown***:
+por janela só 14% das janelas *Absent* saem *Unknown*, mas a regra "*Unknown* se **alguma** gravação for *Unknown*"
+basta uma em ~4 gravações. **Próximo passo:** rever a regra de agregação com as probabilidades dos modelos já
+guardados (sem treinar de novo), igual para a CNN e a RNN.
+
 ---
 
 ## 10. Próximos passos
@@ -296,7 +311,7 @@ mais suave (loss da validação, WA média de 3 épocas). **CNN de referência: 
    - Os dados escondidos do bónus vão ter os ficheiros `.tsv` de segmentação? Se não, não podemos depender deles na previsão.
    - Usar `murmur_audible` (de `Murmur locations`) para rotular as gravações no treino é permitido? O guião diz para usar
      "só o rótulo Murmur", mas também refere o campo `Murmur locations`.
-3. Modelos: CNN em `03_cnn.ipynb` (começada, secção 9) e RNN em `04_rnn.ipynb` (por fazer), ambos com
+3. Modelos: CNN em `03_cnn.ipynb` e RNN em `04_rnn.ipynb` (baselines feitas, secção 9), ambos com
    `src/training.py`.
 
 ### Ideias para as experiências
