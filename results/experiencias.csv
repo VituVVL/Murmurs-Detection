@@ -1,3 +1,6 @@
 experiencia,data,descricao,val_wa,val_accuracy,recall_Present,recall_Unknown,recall_Absent,melhor_epoca,epocas,wa_media_ultimas_5,minutos
 cnn_baseline,2026-11-21,"CNN 4 blocos, Adam lr 1e-3 fixo, wd 1e-4, batch 64, pesos de classe, ES WA pac. 8",0.759,0.768,0.815,0.4,0.79,25,33,0.686,53.9
 cnn_plateau,2026-11-21,"baseline + ReduceLROnPlateau na loss val (factor 0.3, patience 3, min 1e-5)",0.719,0.662,0.815,0.6,0.629,11,19,0.644,29.0
+cnn_audible,2026-11-21,"baseline, sem as janelas de treino Present com sopro não audível no local",0.73,0.655,0.852,0.6,0.61,10,18,0.615,20.5
+cnn_specaug,2026-11-21,"baseline + SpecAugment no treino (2 faixas freq <= 8 bandas, 2 faixas tempo <= 40 colunas)",0.726,0.718,0.778,0.5,0.724,16,24,0.647,35.7
+cnn_overlap,2026-11-21,baseline com janelas de treino com 50% de sobreposição (hop 2.5 s),0.696,0.718,0.741,0.3,0.752,5,13,0.619,30.8

@@ -11,6 +11,7 @@ Uso típico num notebook de modelo:
 import librosa
 import numpy as np
 import pandas as pd
+import soundfile as sf
 
 from src.data import SAMPLE_RATE, load_audio, load_recordings, load_split, make_windows
 
@@ -78,9 +79,26 @@ def build_features(subset, kind="mel", window_s=WINDOW_S, hop_s=HOP_S, fmax=FMAX
     kind="mfcc": X tem forma (n, colunas, N_MFCC)  -> entrada da RNN (sequência de vetores, tempo primeiro)
     O rótulo de cada janela (meta["murmur"]) é o do paciente (opção (a) do notebook 01).
     """
-    windows, meta = build_windows(subset_recordings(subset), window_s, hop_s)
     extract = {"mel": mel_spectrogram, "mfcc": mfcc}[kind]
-    X = np.concatenate([extract(windows[i:i + batch_size], fmax) for i in range(0, len(windows), batch_size)])
+    recordings = subset_recordings(subset)
+    # Poupar memória (com sobreposição de 50% no treino, X tem ~2.2 GB):
+    # - processa em blocos de 100 gravações, sem guardar o áudio cru de todas as janelas ao mesmo tempo;
+    # - conta primeiro as janelas (só lê o cabeçalho dos .wav) e reserva X de uma vez, sem concatenar cópias.
+    # Cada janela é processada de forma independente, por isso o resultado é o mesmo.
+    n_total = sum(len(make_windows(np.zeros(sf.info(w).frames, np.float32), window_s, hop_s, pad_last=False))
+                  for w in recordings["wav"])
+    X, meta, filled = None, [], 0
+    for i in range(0, len(recordings), 100):
+        windows, m = build_windows(recordings.iloc[i:i + 100], window_s, hop_s)
+        meta.append(m)
+        for j in range(0, len(windows), batch_size):
+            features = extract(windows[j:j + batch_size], fmax)
+            if X is None:
+                X = np.empty((n_total, *features.shape[1:]), dtype=np.float32)
+            X[filled:filled + len(features)] = features
+            filled += len(features)
+    assert filled == n_total
+    meta = pd.concat(meta, ignore_index=True)
     if kind == "mfcc":
         X = X.transpose(0, 2, 1)
     return X, meta
@@ -92,12 +110,22 @@ def fit_standardizer(X_train, kind):
     Para "mel" (n, bandas, tempo) a estatística é por banda; para "mfcc" (n, tempo, coeficientes) é por coeficiente.
     """
     axis = {"mel": (0, 2), "mfcc": (0, 1)}[kind]
-    mean = X_train.mean(axis=axis, keepdims=True)
-    std = X_train.std(axis=axis, keepdims=True)
-    return mean.astype(np.float32), std.astype(np.float32)
+    # Por blocos de janelas (o X.std() do numpy criaria uma cópia temporária do tamanho de X).
+    blocks = range(0, len(X_train), 1024)
+    n = len(X_train) * np.prod([X_train.shape[a] for a in axis[1:]])
+    mean = sum(X_train[i:i + 1024].sum(axis=axis, keepdims=True, dtype=np.float64) for i in blocks) / n
+    var = sum(((X_train[i:i + 1024] - mean) ** 2).sum(axis=axis, keepdims=True) for i in blocks) / n
+    return mean.astype(np.float32), np.sqrt(var).astype(np.float32)
 
 
-def standardize(X, stats):
-    """Aplica a normalização calculada no treino (a mesma em treino, validação e teste)."""
+def standardize(X, stats, inplace=False):
+    """Aplica a normalização calculada no treino (a mesma em treino, validação e teste).
+
+    inplace=True altera X diretamente, sem criar uma cópia (útil para o treino com sobreposição, ~2.2 GB).
+    """
     mean, std = stats
+    if inplace:
+        X -= mean
+        X /= std + 1e-8
+        return X
     return (X - mean) / (std + 1e-8)

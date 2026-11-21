@@ -263,6 +263,9 @@ CNN 2D pequena (98 mil parâmetros): 4 blocos `Conv 3×3 → BatchNorm → ReLU 
 |---|---|---|---|---|---|---|
 | `cnn_baseline` | Adam lr 1e-3 fixo, wd 1e-4, batch 64 | **0.759** (ép. 25) | **0.686** | 22/27 · 4/10 · 83/105 | 33 | 54 min |
 | `cnn_plateau` | + `ReduceLROnPlateau` (×0.3 se a loss val não descer em 3 épocas) | 0.719 (ép. 11) | 0.644 | 22/27 · 6/10 · 66/105 | 19 | 29 min |
+| `cnn_audible` | sem as janelas de treino *Present* com sopro não audível no local | 0.730 (ép. 10) | 0.615 | 23/27 · 6/10 · 64/105 | 18 | 21 min |
+| `cnn_specaug` | + SpecAugment no treino (2 faixas freq ≤ 8 bandas, 2 faixas tempo ≤ 0.64 s) | 0.726 (ép. 16) | 0.647 | 21/27 · 5/10 · 76/105 | 24 | 36 min |
+| `cnn_overlap` | janelas de treino com 50% de sobreposição (19 087 em vez de 11 225) | 0.696 (ép. 5) | 0.619 | 20/27 · 3/10 · 79/105 | 13 | 31 min |
 
 **Baseline:** passa bem a referência de 0.499, mas o treino é **muito instável** (WA da validação entre 0.34 e 0.76 de
 época para época) e há *overfitting* a partir da época ~13 (loss de treino desce, a da validação sobe). O 0.759 é o pico
@@ -274,9 +277,15 @@ audível no local e só 18% quando não é.
 Muitos mais *Absent* dados como *Unknown* (22 contra 7). As 9 primeiras épocas são iguais às da baseline (treino
 reprodutível). Diferenças de ~0.04 na WA são ~3 pacientes *Present*: com uma seed só, não são conclusivas.
 
-**Conclusão até aqui:** o problema principal é a **generalização**, não o lr. Próximas experiências na CNN:
-sobreposição de 50% nas janelas do treino, *data augmentation* (SpecAugment), rótulo `murmur_audible`.
-Se voltarmos ao scheduler, com `patience` maior (5–6).
+**Experiências 2–4 (generalização), uma mudança de cada vez em relação à baseline:** nenhuma bateu a baseline.
+`cnn_audible` apanha mais *Present* mas erra muitos mais *Absent*; `cnn_specaug` é a mais próxima; `cnn_overlap`
+parou cedo (pico na época 5). A 4 foi repetida: a primeira tentativa foi parada por falta de memória, e por isso
+`build_features`, `fit_standardizer` e `standardize(..., inplace=True)` passaram a poupar memória (mesmo resultado).
+
+**Conclusão até aqui:** todas as variantes ficam entre ~0.70 e ~0.76, com diferenças de 1 a 4 pacientes *Present*.
+Com uma só seed e 142 pacientes na validação, **o ruído da avaliação é do tamanho dos efeitos**: não dá para dizer
+qual é melhor. Antes de mais experiências: repetir as melhores com 2–3 seeds e/ou escolher a época por um critério
+mais suave (loss da validação, WA média de 3 épocas). **CNN de referência: `cnn_baseline`.**
 
 ---
 

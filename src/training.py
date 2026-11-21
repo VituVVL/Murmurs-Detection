@@ -88,6 +88,28 @@ def evaluate(model, X, meta):
     return weighted_accuracy(patients["murmur"], patients["pred"])
 
 
+def spec_augment(batch, n_freq_masks=2, max_freq=8, n_time_masks=2, max_time=40):
+    """SpecAugment simplificado: em cada exemplo, põe a 0 algumas faixas de frequência e de tempo ao acaso.
+
+    Só no TREINO. Funciona com (n, 1, bandas, tempo) ou (n, bandas, tempo): as duas últimas dimensões são
+    frequência e tempo. Como as features estão normalizadas (média 0 por banda), 0 é o valor "neutro".
+    Por omissão: 2 faixas de até 8 das 64 bandas mel e 2 faixas de até 40 dos 313 instantes (~0.64 s).
+    Obriga a rede a não depender de uma única banda ou de um único instante (ex.: um só batimento).
+    """
+    batch = batch.clone()
+    n, n_freq, n_time = batch.shape[0], batch.shape[-2], batch.shape[-1]
+    for i in range(n):
+        for _ in range(n_freq_masks):
+            width = np.random.randint(0, max_freq + 1)
+            start = np.random.randint(0, n_freq - width + 1)
+            batch[i, ..., start:start + width, :] = 0
+        for _ in range(n_time_masks):
+            width = np.random.randint(0, max_time + 1)
+            start = np.random.randint(0, n_time - width + 1)
+            batch[i, ..., start:start + width] = 0
+    return batch
+
+
 def log_experiment(name, description, history, patients, path=None):
     """Regista uma experiência: grava o histórico em results/<name>_history.csv e acrescenta (ou substitui)
     uma linha em results/experiencias.csv com o resumo, para comparar todas as experiências num só sítio.
@@ -116,7 +138,7 @@ def log_experiment(name, description, history, patients, path=None):
 
 
 def fit(model, X_train, y_train, X_val, meta_val, weights, epochs=40, patience=8, batch_size=64, lr=1e-3,
-        weight_decay=1e-4, lr_plateau=None, verbose=True):
+        weight_decay=1e-4, lr_plateau=None, augment=None, verbose=True):
     """Treina com Adam e CrossEntropy com pesos de classe.
 
     Early stopping pela WA ao nível do paciente na VALIDAÇÃO (nunca o teste): no fim o modelo fica com os pesos
@@ -126,6 +148,8 @@ def fit(model, X_train, y_train, X_val, meta_val, weights, epochs=40, patience=8
     ex. {"factor": 0.3, "patience": 3}. O scheduler olha para a LOSS da validação (mais suave do que a WA,
     porque usa todas as janelas e não só 142 pacientes) e multiplica o lr por `factor` quando ela não desce
     durante `patience` épocas. A sua paciência deve ser menor do que a do early stopping.
+
+    augment: None ou uma função aplicada a cada batch de TREINO (ex.: spec_augment). A validação nunca é alterada.
     """
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = None
@@ -144,7 +168,8 @@ def fit(model, X_train, y_train, X_val, meta_val, weights, epochs=40, patience=8
         for i in range(0, len(order), batch_size):
             idx = order[i:i + batch_size]
             optimizer.zero_grad()
-            loss = loss_fn(model(X_train_t[idx]), y_train_t[idx])
+            batch = X_train_t[idx] if augment is None else augment(X_train_t[idx])
+            loss = loss_fn(model(batch), y_train_t[idx])
             loss.backward()
             optimizer.step()
             train_loss += loss.item() * len(idx)
