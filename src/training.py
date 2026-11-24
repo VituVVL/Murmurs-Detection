@@ -24,6 +24,7 @@ from src.data import SEED
 from src.metrics import CLASSES, weighted_accuracy
 
 CLASS_INDEX = {c: i for i, c in enumerate(CLASSES)}   # Present = 0, Unknown = 1, Absent = 2
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")   # GPU se existir (torch com CUDA)
 
 
 def set_seed(seed=SEED):
@@ -35,7 +36,7 @@ def set_seed(seed=SEED):
 
 def encode_labels(meta):
     """Rótulo de cada janela como inteiro (índice em CLASSES)."""
-    return meta["murmur"].map(CLASS_INDEX).to_numpy()
+    return meta["murmur"].map(CLASS_INDEX).to_numpy(dtype=np.int64, copy=True)   # cópia: o torch não aceita arrays só de leitura
 
 
 def class_weights(meta_train):
@@ -49,13 +50,14 @@ def class_weights(meta_train):
 
 
 def predict_proba(model, X, batch_size=256):
-    """Probabilidades (n_janelas, 3) na ordem de CLASSES."""
+    """Probabilidades (n_janelas, 3) na ordem de CLASSES. Corre no device onde o modelo estiver."""
+    device = next(model.parameters()).device
     model.eval()
     probs = []
     with torch.no_grad():
         for i in range(0, len(X), batch_size):
-            batch = torch.as_tensor(X[i:i + batch_size])
-            probs.append(torch.softmax(model(batch), dim=1).numpy())
+            batch = torch.as_tensor(X[i:i + batch_size]).to(device)
+            probs.append(torch.softmax(model(batch), dim=1).cpu().numpy())
     return np.concatenate(probs)
 
 
@@ -150,14 +152,17 @@ def fit(model, X_train, y_train, X_val, meta_val, weights, epochs=40, patience=8
     durante `patience` épocas. A sua paciência deve ser menor do que a do early stopping.
 
     augment: None ou uma função aplicada a cada batch de TREINO (ex.: spec_augment). A validação nunca é alterada.
+
+    O modelo é movido para DEVICE (GPU se existir); os dados ficam na RAM e vão para o device batch a batch.
     """
+    model.to(DEVICE)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = None
     if lr_plateau is not None:
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", **lr_plateau)
-    loss_fn = nn.CrossEntropyLoss(weight=weights)
+    loss_fn = nn.CrossEntropyLoss(weight=weights.to(DEVICE))
     X_train_t, y_train_t = torch.as_tensor(X_train), torch.as_tensor(y_train)
-    y_val_t = torch.as_tensor(encode_labels(meta_val))
+    y_val_t = torch.as_tensor(encode_labels(meta_val)).to(DEVICE)
 
     best_wa, best_state, best_epoch, history = -1.0, None, 0, []
     for epoch in range(1, epochs + 1):
@@ -169,13 +174,13 @@ def fit(model, X_train, y_train, X_val, meta_val, weights, epochs=40, patience=8
             idx = order[i:i + batch_size]
             optimizer.zero_grad()
             batch = X_train_t[idx] if augment is None else augment(X_train_t[idx])
-            loss = loss_fn(model(batch), y_train_t[idx])
+            loss = loss_fn(model(batch.to(DEVICE)), y_train_t[idx].to(DEVICE))
             loss.backward()
             optimizer.step()
             train_loss += loss.item() * len(idx)
 
         probs = predict_proba(model, X_val)
-        val_loss = loss_fn(torch.log(torch.as_tensor(probs) + 1e-8), y_val_t).item()
+        val_loss = loss_fn(torch.log(torch.as_tensor(probs, device=DEVICE) + 1e-8), y_val_t).item()
         patients = patient_predictions(meta_val, probs)
         val_wa = weighted_accuracy(patients["murmur"], patients["pred"])
         current_lr = optimizer.param_groups[0]["lr"]

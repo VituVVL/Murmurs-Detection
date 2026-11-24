@@ -1,7 +1,8 @@
 # Progresso do projeto
 
 Resumo do que foi feito (início a 02/11/2026; modelos desde 21/11, secção 9), das decisões tomadas e do que falta.
-Datas: **checkpoint 05/11** · entrega 30/11 · apresentações 03/12 e 10/12.
+Última atualização: 24/11/2026.
+Datas: checkpoint 05/11 (feito, secção 10) · **entrega 30/11** · apresentações 03/12 e 10/12.
 
 ---
 
@@ -51,8 +52,15 @@ O Rodrigo e o Marvin só precisam de [instalar o uv](https://docs.astral.sh/uv/g
 **Bibliotecas instaladas:** numpy, pandas, scipy, scikit-learn, librosa, soundfile, torch, matplotlib, seaborn, ipykernel, jupyter.
 
 **Notas:**
-- O torch instalado é **só CPU** (2.15.0+cpu): o teu PC não tem GPU NVIDIA. Treinos pesados vão ser lentos.
-  As anotações dizem para falar com o professor se algo demorar demasiado.
+- O torch instalado é **só CPU** (2.15.0+cpu): o portátil não tem GPU NVIDIA. Treinos pesados vão ser lentos
+  (~2 min por época). As anotações dizem para falar com o professor se algo demorar demasiado.
+- **Treinar numa GPU NVIDIA** (ex.: desktop do Victor): o `src/training.py` usa a GPU sozinho se o torch tiver CUDA,
+  mas o `uv sync` instala sempre o torch só CPU do `uv.lock`. Nesse PC, depois do `uv sync`, instalar o torch com CUDA
+  com o comando que o [pytorch.org](https://pytorch.org/get-started/locally/) indicar para a versão de CUDA da placa
+  (com `uv pip install ...` em vez de `pip install ...`), e confirmar com
+  `uv run --no-sync python -c "import torch; print(torch.cuda.is_available())"`. Depois correr sempre com
+  `uv run --no-sync` (ou abrir os notebooks no PyCharm), porque um `uv run` normal volta a pôr o torch só CPU.
+  Para abrir num PC sem GPU um `.pt` treinado na GPU: `torch.load(caminho, map_location="cpu")`.
 - O PyCharm detetou a `.venv` e passou a usá-la como interpretador. Antes disso o projeto não tinha nenhum interpretador
   configurado. O Python do sistema era só o atalho da Microsoft Store, que não funciona.
 
@@ -246,7 +254,7 @@ Fica em `src/` porque a agregação e o critério de paragem têm de ser iguais 
 |---|---|
 | `set_seed()` | fixa as seeds do Python, numpy e torch (seed 42) |
 | `class_weights(meta_train)` | pesos da loss: `total / (3 × janelas da classe)` → Present 1.74, Unknown 6.94, Absent 0.44. *Peso × nº de janelas* é igual nas 3 classes |
-| `fit(...)` | Adam + CrossEntropy com pesos; early stopping pela **WA do paciente na validação** (paciência 8), fica a melhor época. `lr_plateau={...}` liga o `ReduceLROnPlateau` (sobre a loss da validação) |
+| `fit(...)` | Adam + CrossEntropy com pesos; early stopping pela **WA do paciente na validação** (paciência 8), fica a melhor época. `lr_plateau={...}` liga o `ReduceLROnPlateau` (sobre a loss da validação). Usa a **GPU** se existir (`DEVICE`, ver secção 3) |
 | `predict_proba(model, X)` | probabilidades por janela |
 | `patient_predictions(meta, probs)` | janela → gravação (média das probabilidades, `argmax`) → paciente (*Present* se alguma gravação for *Present*; senão *Unknown* se alguma for; senão *Absent*) |
 | `log_experiment(nome, descrição, history, patients)` | grava `results/<nome>_history.csv` e acrescenta uma linha a `results/experiencias.csv` |
@@ -287,6 +295,10 @@ Com uma só seed e 142 pacientes na validação, **o ruído da avaliação é do
 qual é melhor. Antes de mais experiências: repetir as melhores com 2–3 seeds e/ou escolher a época por um critério
 mais suave (loss da validação, WA média de 3 épocas). **CNN de referência: `cnn_baseline`.**
 
+Mais uma prova da instabilidade: uma corrida da mesma CNN feita à parte (19/11, notebook próprio, não guardado no git)
+com **paciência 6** parou na época 13 com WA val **0.604**; a `cnn_baseline`, com paciência 8, só chegou ao pico de
+0.759 na época 25. O critério de paragem pesa tanto como as mudanças testadas.
+
 ### RNN (`notebooks/04_rnn.ipynb`)
 
 GRU bidirecional, 2 camadas × 64 unidades, dropout 0.3, *pooling* média + máximo no tempo (~106 mil parâmetros,
@@ -307,12 +319,16 @@ guardados (sem treinar de novo), igual para a CNN e a RNN.
 ## 10. Próximos passos
 
 1. Mostrar os notebooks ao Rodrigo e ao Marvin; todos têm de saber explicar tudo (checkpoint 05/11, apresentações).
-2. **Perguntar ao professor no checkpoint:** *(registar aqui as respostas)*
-   - Os dados escondidos do bónus vão ter os ficheiros `.tsv` de segmentação? Se não, não podemos depender deles na previsão.
-   - Usar `murmur_audible` (de `Murmur locations`) para rotular as gravações no treino é permitido? O guião diz para usar
-     "só o rótulo Murmur", mas também refere o campo `Murmur locations`.
+2. **Checkpoint (05/11):** o professor achou ok o que foi apresentado (decisões da secção 8). Respostas às perguntas:
+   - **Usar `murmur_audible` no treino:** **pode**, mas cabe-nos avaliar se é o melhor. A experiência `cnn_audible`
+     (secção 9) é essa avaliação; a escolha tem de ser justificada na apresentação.
+   - **Os dados do bónus trazem os `.tsv` de segmentação?** A resposta não ficou registada. Por segurança, a previsão
+     **não depende da segmentação** (o pipeline atual já não a usa).
 3. Modelos: CNN em `03_cnn.ipynb` e RNN em `04_rnn.ipynb` (baselines feitas, secção 9), ambos com
    `src/training.py`.
+4. **Rever a regra de agregação** (o maior erro são *Absent* dados como *Unknown*) com as probabilidades dos modelos
+   já treinados. Os `.pt` não estão no git: pedir ao Rodrigo ou treinar de novo.
+5. **Fecho (30/11):** resultados no teste só no fim; slides em PDF (10 min); zip do código; CSV do bónus.
 
 ### Ideias para as experiências
 
