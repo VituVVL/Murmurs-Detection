@@ -52,15 +52,15 @@ O Rodrigo e o Marvin só precisam de [instalar o uv](https://docs.astral.sh/uv/g
 **Bibliotecas instaladas:** numpy, pandas, scipy, scikit-learn, librosa, soundfile, torch, matplotlib, seaborn, ipykernel, jupyter.
 
 **Notas:**
-- O torch instalado é **só CPU** (2.15.0+cpu): o portátil não tem GPU NVIDIA. Treinos pesados vão ser lentos
-  (~2 min por época). As anotações dizem para falar com o professor se algo demorar demasiado.
-- **Treinar numa GPU NVIDIA** (ex.: desktop do Victor): o `src/training.py` usa a GPU sozinho se o torch tiver CUDA,
-  mas o `uv sync` instala sempre o torch só CPU do `uv.lock`. Nesse PC, depois do `uv sync`, instalar o torch com CUDA
-  com o comando que o [pytorch.org](https://pytorch.org/get-started/locally/) indicar para a versão de CUDA da placa
-  (com `uv pip install ...` em vez de `pip install ...`), e confirmar com
-  `uv run --no-sync python -c "import torch; print(torch.cuda.is_available())"`. Depois correr sempre com
-  `uv run --no-sync` (ou abrir os notebooks no PyCharm), porque um `uv run` normal volta a pôr o torch só CPU.
-  Para abrir num PC sem GPU um `.pt` treinado na GPU: `torch.load(caminho, map_location="cpu")`.
+- **torch com CUDA para todos (desde 25/11):** o `pyproject.toml` manda o uv buscar o torch ao índice CUDA 13.2 do
+  PyTorch (`2.15.0+cu132`), em Windows e Linux. Basta `uv sync` / `uv run` normais, **sem** `--no-sync`.
+  - Com GPU NVIDIA (desktop do Victor, RTX 5060; driver com CUDA ≥ 13.2): o `src/training.py` usa-a sozinho (`DEVICE`).
+    Uma época demora ~3 s na CNN e ~1 s na GRU (contra ~95 s e ~120 s em CPU).
+  - Sem GPU NVIDIA (portáteis): o mesmo torch corre no CPU. Só o download é maior (~2 GB, uma vez).
+  - Confirmar: `uv run python -c "import torch; print(torch.__version__, torch.cuda.is_available())"`.
+  - Para abrir num PC sem GPU um `.pt` treinado na GPU: `torch.load(caminho, map_location="cpu")`.
+  - Os treinos de 26/11 em diante foram feitos na GPU. Os números não são exatamente iguais aos do CPU (operações
+    da GPU não são bit-a-bit determinísticas), por isso as tabelas finais usam só corridas da GPU.
 - O PyCharm detetou a `.venv` e passou a usá-la como interpretador. Antes disso o projeto não tinha nenhum interpretador
   configurado. O Python do sistema era só o atalho da Microsoft Store, que não funciona.
 
@@ -313,6 +313,27 @@ mais calmo (loss da validação estável, pouco overfitting). O erro principal s
 por janela só 14% das janelas *Absent* saem *Unknown*, mas a regra "*Unknown* se **alguma** gravação for *Unknown*"
 basta uma em ~4 gravações. **Próximo passo:** rever a regra de agregação com as probabilidades dos modelos já
 guardados (sem treinar de novo), igual para a CNN e a RNN.
+
+### Várias seeds na GPU (`notebooks/05_seeds_agregacao.ipynb`, 26/11)
+
+Com a GPU, cada configuração foi treinada com **5 seeds** (`src/run_seeds.py`, 40 épocas fixas, probabilidades e pesos
+de todas as épocas guardados em `runs/`, fora do git). Isto permite comparar, sem treinar de novo, pesos de classe,
+regras de agregação (`patient_predictions(..., rule="any" | "half" | "mean")`) e critérios de escolha da época.
+Para não ser otimista, a época é escolhida numa metade dos pacientes da validação e a WA é medida na outra (20 divisões).
+
+| | procedimento original (`any`, melhor WA) | configuração comum escolhida (`mean`, menor loss val) |
+|---|---|---|
+| CNN, pesos equilibrados | 0.657 ± 0.014 | 0.655 ± 0.025 |
+| CNN, **pesos da métrica (5/3/1)** | 0.707 ± 0.013 | **0.744 ± 0.027** |
+| RNN, pesos equilibrados | 0.687 ± 0.030 | 0.689 ± 0.014 |
+| RNN, **pesos da métrica (5/3/1)** | 0.768 ± 0.044 | **0.760 ± 0.023** |
+
+- Os valores de uma seed (0.759 da CNN) eram **otimistas**: escolher e medir nos mesmos pacientes dá +0.03 a +0.05.
+- **Pesos de classe iguais aos da métrica** são a melhoria mais clara (+0.05 a +0.08, acima do desvio entre seeds):
+  acabam com os *Absent* dados como *Unknown* (159 → 18 em 525 na CNN). Passam a ser o padrão.
+- Com esses pesos, regra e critério da época mudam ≤ 0.02 (ruído). Escolheu-se uma configuração **comum** aos dois
+  modelos: regra `mean` e época pela loss da validação.
+- **A RNN fica à frente da CNN** e é muito mais estável entre épocas. (Em CPU tinha parado cedo, na época 12.)
 
 ---
 

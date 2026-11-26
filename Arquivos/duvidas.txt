@@ -1,0 +1,43 @@
+Dúvidas para o professor - aula prática de 27/11/2026 (última antes da entrega de 30/11)
+Grupo PL2 G05
+
+=== PARA PERGUNTAR ===
+
+Avaliação (as mais importantes: mudam o que reportamos)
+1. Depois de escolher a configuração na validação e reportar o teste, podemos retreinar o modelo final com
+   treino + validação (ou com os 942 pacientes) só para gerar as previsões do bónus?
+   Resposta:
+
+2. Basta reportar no teste a média ± desvio de 5 seeds, numa só divisão 70/15/15 por paciente?
+   Ou prefere validação cruzada?
+   Resposta:
+
+3. É aceitável escolher a regra de agregação por paciente e o critério de paragem (época) com a validação?
+   Para não ficar otimista, escolhemos numa metade dos pacientes da validação e medimos na outra.
+   Ou vê isso como afinar demais a validação?
+   Resposta:
+
+Bónus
+4. Podemos usar um ensemble no bónus (média das 5 seeds, ou CNN + RNN juntas)?
+   O guião diz "predictions of your best model".
+   Resposta:
+
+Entrega / apresentação
+9. O professor vai correr o código? Usamos torch com CUDA (GPU NVIDIA); também corre só em CPU,
+   mas muito mais devagar (~55 min por treino da CNN, ~2-3 min na GPU).
+   Resposta:
+
+=== JÁ RESPONDIDAS ===
+
+5. Formato do CSV do bónus: colunas ID,Murmur (ID = patient_id), 100 linhas.
+   Nome: PL2_G05_test_results.csv (template PLX_GYY_test_results.csv, X = PL, YY = grupo).
+6. Formulário de autoavaliação: está no Moodle (o Victor descarrega).
+7. Data da apresentação (3 ou 10/12): ver depois, não é urgente.
+8. Slides: resultados finais todos treinados na GPU. As experiências em CPU (notebooks 03/04, 1 seed)
+   podem aparecer como parte do percurso ("começámos em CPU, depois refizemos na GPU").
+
+Não é preciso perguntar:
+- Usar murmur_audible no treino: já respondido no checkpoint (05/11): pode, mas temos de justificar.
+- Os dados do bónus trazem .tsv? Não (o README dos dados confirma). O nosso pipeline não usa os .tsv.
+
+

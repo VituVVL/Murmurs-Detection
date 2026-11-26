@@ -1,0 +1,15 @@
+,,"WA justa (escolher numa metade, medir na outra)","WA justa (escolher numa metade, medir na outra)","WA justa (escolher numa metade, medir na outra)",WA ingénua (escolher e medir nos mesmos pacientes),WA ingénua (escolher e medir nos mesmos pacientes),WA ingénua (escolher e medir nos mesmos pacientes)
+criterion,,es_wa,es_wa3,es_loss,es_wa,es_wa3,es_loss
+exp,rule,,,,,,
+cnn_base,any,0.657 ± 0.014,0.616 ± 0.031,0.591 ± 0.03,0.69 ± 0.03,0.636 ± 0.034,0.588 ± 0.047
+cnn_base,half,0.677 ± 0.031,0.651 ± 0.021,0.645 ± 0.03,0.729 ± 0.013,0.68 ± 0.029,0.656 ± 0.049
+cnn_base,mean,0.703 ± 0.023,0.682 ± 0.04,0.655 ± 0.025,0.736 ± 0.029,0.704 ± 0.041,0.661 ± 0.044
+cnn_wmetric,any,0.707 ± 0.013,0.708 ± 0.012,0.719 ± 0.027,0.755 ± 0.014,0.724 ± 0.038,0.733 ± 0.031
+cnn_wmetric,half,0.712 ± 0.013,0.709 ± 0.015,0.721 ± 0.027,0.764 ± 0.018,0.705 ± 0.03,0.735 ± 0.031
+cnn_wmetric,mean,0.729 ± 0.012,0.727 ± 0.014,0.744 ± 0.027,0.773 ± 0.017,0.742 ± 0.028,0.753 ± 0.044
+rnn_base,any,0.687 ± 0.03,0.674 ± 0.014,0.656 ± 0.022,0.718 ± 0.024,0.723 ± 0.026,0.653 ± 0.024
+rnn_base,half,0.723 ± 0.035,0.712 ± 0.014,0.708 ± 0.019,0.763 ± 0.023,0.737 ± 0.041,0.707 ± 0.016
+rnn_base,mean,0.718 ± 0.014,0.716 ± 0.018,0.689 ± 0.014,0.747 ± 0.021,0.733 ± 0.017,0.687 ± 0.027
+rnn_wmetric,any,0.768 ± 0.044,0.749 ± 0.031,0.728 ± 0.015,0.796 ± 0.029,0.765 ± 0.032,0.714 ± 0.018
+rnn_wmetric,half,0.77 ± 0.037,0.75 ± 0.019,0.735 ± 0.02,0.803 ± 0.023,0.772 ± 0.026,0.724 ± 0.027
+rnn_wmetric,mean,0.753 ± 0.028,0.746 ± 0.014,0.76 ± 0.023,0.787 ± 0.019,0.759 ± 0.02,0.772 ± 0.04

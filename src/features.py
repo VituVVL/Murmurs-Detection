@@ -13,7 +13,10 @@ import numpy as np
 import pandas as pd
 import soundfile as sf
 
-from src.data import SAMPLE_RATE, load_audio, load_recordings, load_split, make_windows
+from src.data import (ROOT, SAMPLE_RATE, load_audio, load_recordings, load_split, load_unlabeled_recordings,
+                      make_windows)
+
+CACHE_DIR = ROOT / "data" / "cache"   # features já calculadas (fora do git, ~1.3 GB)
 
 # Parâmetros escolhidos no notebook 02_preprocessamento (justificação lá).
 WINDOW_S = 5.0     # duração de cada janela (s); todas as gravações têm >= 5.2 s
@@ -52,7 +55,10 @@ def mfcc(windows, fmax=FMAX, n_mfcc=N_MFCC):
 
 
 def subset_recordings(subset):
-    """Gravações de um subconjunto ("train", "val" ou "test") da divisão em data/split.csv."""
+    """Gravações de um subconjunto ("train", "val" ou "test") da divisão em data/split.csv, ou "bonus"
+    (os 100 pacientes escondidos, sem rótulo)."""
+    if subset == "bonus":
+        return load_unlabeled_recordings()
     recordings = load_recordings().merge(load_split(), on="patient_id")
     return recordings[recordings["subset"] == subset].reset_index(drop=True)
 
@@ -101,6 +107,23 @@ def build_features(subset, kind="mel", window_s=WINDOW_S, hop_s=HOP_S, fmax=FMAX
     meta = pd.concat(meta, ignore_index=True)
     if kind == "mfcc":
         X = X.transpose(0, 2, 1)
+    return X, meta
+
+
+def load_features(subset, kind="mel", hop_s=HOP_S, fmax=FMAX):
+    """Igual a build_features, mas guarda o resultado em data/cache/ e reutiliza-o nas chamadas seguintes.
+
+    O nome do ficheiro inclui os parâmetros que mudam as features; se mudares N_FFT, N_MELS, etc., apaga a cache.
+    Devolve (X, meta) SEM normalizar (a normalização usa as estatísticas do treino: fit_standardizer + standardize).
+    """
+    name = f"{kind}_{subset}_w{WINDOW_S:g}_h{hop_s or 0:g}_fmax{fmax}_nfft{N_FFT}_hop{HOP_LENGTH}"
+    x_path, meta_path = CACHE_DIR / f"{name}.npy", CACHE_DIR / f"{name}_meta.csv"
+    if x_path.exists() and meta_path.exists():
+        return np.load(x_path), pd.read_csv(meta_path)
+    X, meta = build_features(subset, kind, hop_s=hop_s, fmax=fmax)
+    CACHE_DIR.mkdir(exist_ok=True)
+    np.save(x_path, X)
+    meta.to_csv(meta_path, index=False)
     return X, meta
 
 

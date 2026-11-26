@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data" / "circor"
 RECORDINGS_DIR = DATA_DIR / "training_data"
 SPLIT_FILE = ROOT / "data" / "split.csv"
+BONUS_DIR = ROOT / "data" / "CirCor_test_students" / "test_data"   # 100 pacientes escondidos do bónus, sem rótulos
 
 SAMPLE_RATE = 4000  # todas as gravações do CirCor estão a 4000 Hz
 SEED = 42   # a resposta para a vida
@@ -44,6 +45,22 @@ def load_recordings():
                 "murmur": patient["murmur"],
                 "murmur_audible": patient["murmur"] == "Present" and location in audible,
             })
+    return pd.DataFrame(rows)
+
+
+def load_unlabeled_recordings(folder=BONUS_DIR):
+    """Como load_recordings, mas para dados SEM rótulo (o conjunto do bónus): lê só os <paciente>.txt e os .wav.
+
+    Não há training_data.csv nem .tsv; `murmur` fica vazio e `murmur_audible` False.
+    """
+    rows = []
+    for txt in sorted(folder.glob("*.txt")):
+        lines = txt.read_text().splitlines()
+        patient_id, n_recordings = int(lines[0].split()[0]), int(lines[0].split()[1])
+        for line in lines[1:n_recordings + 1]:
+            location, _, wav, _ = line.split()
+            rows.append({"patient_id": patient_id, "location": location, "wav": folder / wav,
+                         "murmur": None, "murmur_audible": False})
     return pd.DataFrame(rows)
 
 

@@ -21,7 +21,7 @@ import torch
 from torch import nn
 
 from src.data import SEED
-from src.metrics import CLASSES, weighted_accuracy
+from src.metrics import CLASSES, WEIGHTS, weighted_accuracy
 
 CLASS_INDEX = {c: i for i, c in enumerate(CLASSES)}   # Present = 0, Unknown = 1, Absent = 2
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")   # GPU se existir (torch com CUDA)
@@ -39,13 +39,23 @@ def encode_labels(meta):
     return meta["murmur"].map(CLASS_INDEX).to_numpy(dtype=np.int64, copy=True)   # cópia: o torch não aceita arrays só de leitura
 
 
-def class_weights(meta_train):
-    """Pesos de classe para a loss: inverso da frequência de cada classe nas JANELAS do treino.
+def class_weights(meta_train, scheme="balanced"):
+    """Pesos de classe para a loss, calculados nas JANELAS do treino.
 
-    Normalizados para a média ponderada ser 1 (a escala da loss fica parecida com a de sem pesos).
+    - "balanced": inverso da frequência de cada classe (cada classe conta o mesmo no total da loss).
+      Present 1.74, Unknown 6.94, Absent 0.44: o Unknown pesa mais, por ser a classe com menos janelas.
+    - "metric": os pesos da WA (Present 5, Unknown 3, Absent 1), para a loss imitar a métrica.
+      Errar uma janela Present custa 5x errar uma Absent, como errar um paciente na WA.
+    Normalizados para a média ponderada (pelas janelas) ser 1: a escala da loss fica parecida com a de sem pesos.
     """
     counts = meta_train["murmur"].value_counts().reindex(CLASSES).to_numpy()
-    weights = counts.sum() / (len(CLASSES) * counts)
+    if scheme == "balanced":
+        weights = counts.sum() / (len(CLASSES) * counts)
+    elif scheme == "metric":
+        w = np.array([WEIGHTS[c] for c in CLASSES], dtype=float)
+        weights = w * counts.sum() / (w * counts).sum()
+    else:
+        raise ValueError(scheme)
     return torch.tensor(weights, dtype=torch.float32)
 
 
@@ -61,24 +71,35 @@ def predict_proba(model, X, batch_size=256):
     return np.concatenate(probs)
 
 
-def patient_predictions(meta, probs):
+RULES = ["any", "half", "mean"]
+
+
+def patient_predictions(meta, probs, rule="any"):
     """Junta as previsões janela -> gravação -> paciente.
 
     - Gravação: média das probabilidades das suas janelas; classe = a de maior probabilidade.
-    - Paciente: Present se alguma gravação for Present (o sopro pode ser audível só num local);
-      senão Unknown se alguma for Unknown; senão Absent.
+    - Paciente, conforme `rule`:
+      "any"  (a original): Present se alguma gravação for Present (o sopro pode ser audível só num local);
+             senão Unknown se alguma for Unknown; senão Absent.
+      "half": Present se alguma gravação for Present; senão Unknown se PELO MENOS METADE das gravações for Unknown;
+             senão Absent. (Unknown = "o médico não conseguiu ouvir bem": deve afetar o paciente todo, não um local.)
+      "mean": média das probabilidades das gravações do paciente; classe = a de maior probabilidade.
     Devolve uma linha por paciente: patient_id, murmur (verdadeiro), pred.
     """
     df = meta[["patient_id", "recording", "murmur"]].copy()
     df[CLASSES] = probs
     recordings = df.groupby(["patient_id", "recording", "murmur"], as_index=False)[CLASSES].mean()
+    if rule == "mean":
+        patients = recordings.groupby(["patient_id", "murmur"], as_index=False)[CLASSES].mean()
+        patients["pred"] = patients[CLASSES].idxmax(axis=1)
+        return patients[["patient_id", "murmur", "pred"]]
     recordings["pred"] = recordings[CLASSES].idxmax(axis=1)
 
     def decide(preds):
-        for c in ["Present", "Unknown"]:
-            if (preds == c).any():
-                return c
-        return "Absent"
+        if (preds == "Present").any():
+            return "Present"
+        unknown = (preds == "Unknown").any() if rule == "any" else (preds == "Unknown").mean() >= 0.5
+        return "Unknown" if unknown else "Absent"
 
     patients = recordings.groupby(["patient_id", "murmur"])["pred"].agg(decide).reset_index()
     return patients
@@ -140,7 +161,7 @@ def log_experiment(name, description, history, patients, path=None):
 
 
 def fit(model, X_train, y_train, X_val, meta_val, weights, epochs=40, patience=8, batch_size=64, lr=1e-3,
-        weight_decay=1e-4, lr_plateau=None, augment=None, verbose=True):
+        weight_decay=1e-4, lr_plateau=None, augment=None, verbose=True, on_epoch=None):
     """Treina com Adam e CrossEntropy com pesos de classe.
 
     Early stopping pela WA ao nível do paciente na VALIDAÇÃO (nunca o teste): no fim o modelo fica com os pesos
@@ -152,6 +173,9 @@ def fit(model, X_train, y_train, X_val, meta_val, weights, epochs=40, patience=8
     durante `patience` épocas. A sua paciência deve ser menor do que a do early stopping.
 
     augment: None ou uma função aplicada a cada batch de TREINO (ex.: spec_augment). A validação nunca é alterada.
+
+    patience=None desliga o early stopping (treina sempre `epochs` épocas). on_epoch: função opcional chamada no fim
+    de cada época como on_epoch(epoch, model, probs_val), para guardar pesos/probabilidades de todas as épocas.
 
     O modelo é movido para DEVICE (GPU se existir); os dados ficam na RAM e vão para o device batch a batch.
     """
@@ -192,10 +216,12 @@ def fit(model, X_train, y_train, X_val, meta_val, weights, epochs=40, patience=8
                   f"loss val {h['val_loss']:.3f}  WA val {val_wa:.3f}  ({h['seconds']:.0f} s)")
         if scheduler is not None:
             scheduler.step(val_loss)
+        if on_epoch is not None:
+            on_epoch(epoch, model, probs)
 
         if val_wa > best_wa:
             best_wa, best_state, best_epoch = val_wa, copy.deepcopy(model.state_dict()), epoch
-        elif epoch - best_epoch >= patience:
+        elif patience is not None and epoch - best_epoch >= patience:
             if verbose:
                 print(f"early stopping: sem melhoria há {patience} épocas")
             break

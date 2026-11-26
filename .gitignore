@@ -1,5 +1,10 @@
 # Dataset (não vai para o git nem para a entrega)
 data/circor/
+data/CirCor_test_students/
+data/cache/
+
+# Corridas com várias seeds (pesos e probabilidades de todas as épocas; ver src/run_seeds.py)
+runs/
 
 # Modelos treinados
 *.pt

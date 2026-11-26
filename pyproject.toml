@@ -22,3 +22,14 @@ dependencies = [
 
 [tool.uv]
 package = false
+
+# torch com CUDA 13.2 (Windows e Linux). Usa a GPU NVIDIA se existir; num PC sem GPU corre no CPU na mesma.
+# Assim `uv sync` / `uv run` instalam sempre esta versão (antes trocavam-na pelo torch só CPU do PyPI).
+# No macOS não há builds CUDA: fica o torch normal do PyPI.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu132", marker = "sys_platform != 'darwin'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu132"
+url = "https://download.pytorch.org/whl/cu132"
+explicit = true
