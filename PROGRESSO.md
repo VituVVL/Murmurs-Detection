@@ -1,7 +1,7 @@
 # Progresso do projeto
 
 Resumo do que foi feito (início a 02/11/2026; modelos desde 21/11, secção 9), das decisões tomadas e do que falta.
-Última atualização: 24/11/2026.
+Última atualização: 27/11/2026.
 Datas: checkpoint 05/11 (feito, secção 10) · **entrega 30/11** · apresentações 03/12 e 10/12.
 
 ---
@@ -362,7 +362,28 @@ com a configuração comum (regra `mean`, época pela loss da validação, WA ju
 - **Ensemble das 5 seeds:** quase não muda as referências (CNN 0.749, RNN 0.761).
 
 **Configuração final** (escolhida só com a validação): `cnn_wmetric` e `rnn_wmetric`, regra `mean`, época pela menor
-loss da validação. No teste: média ± desvio das 5 seeds e matriz de confusão por paciente.
+loss da validação. A forma de a avaliar mudou com as respostas do professor (secção 10): validação cruzada.
+
+### Regra de agregação com a mesma época (`src/compare_rules.py`, 27/11)
+
+Objeção levantada: no dataset um paciente é *Present* se o sopro foi ouvido em **pelo menos um** local, que é a
+lógica da regra `any`; a `mean` pode diluir um sopro que só se ouve num local. Contra-argumentos: a regra junta
+**previsões** e não a verdade (com `any`, um falso *Present* em qualquer das ~4 gravações chega para errar o paciente:
+com 10% de erro por gravação são ~34% por paciente), e a rede é treinada com o rótulo do paciente em todas as
+gravações, ou seja, cada gravação é uma estimativa sobre o paciente.
+
+Com o critério da configuração final (época pela menor loss, que é a mesma nas três regras) a `mean` já ganha
+(`results/seeds_criterios_regras.csv`, coluna `es_loss`, WA justa):
+
+| | `any` | `half` | `mean` |
+|---|---|---|---|
+| CNN (`cnn_wmetric`) | 0.719 | 0.721 | **0.744** |
+| RNN (`rnn_wmetric`) | 0.728 | 0.735 | **0.760** |
+
+(O 0.768 da `any` na RNN, na tabela do notebook 05, usa outro critério de época, a WA; não é a mesma comparação.)
+`src/compare_rules.py` acrescenta o recall por classe, as matrizes por paciente e os pacientes em que `any` e `mean`
+discordam, para ver se a `mean` perde *Present*. Corre sobre `runs/` (só no desktop):
+`uv run python -m src.compare_rules`. Resultado: por correr.
 
 ---
 
@@ -376,9 +397,32 @@ loss da validação. No teste: média ± desvio das 5 seeds e matriz de confusã
      **não depende da segmentação** (o pipeline atual já não a usa).
 3. Modelos: CNN em `03_cnn.ipynb` e RNN em `04_rnn.ipynb` (baselines feitas, secção 9), ambos com
    `src/training.py`.
-4. **Rever a regra de agregação** (o maior erro são *Absent* dados como *Unknown*) com as probabilidades dos modelos
-   já treinados. Os `.pt` não estão no git: pedir ao Rodrigo ou treinar de novo.
-5. **Fecho (30/11):** resultados no teste só no fim; slides em PDF (10 min); zip do código; CSV do bónus.
+4. ~~Rever a regra de agregação~~: feito no notebook 05 (regra `mean`); confirmação em `src/compare_rules.py`
+   (secção 9).
+5. **Aula de 27/11: respostas do professor** (registo completo em `Arquivos/duvidas.txt`):
+   - **Bónus:** retreinar o modelo final com mais dados, **incluindo o teste**, guardando uma parte para validação
+     (85/15, 80/20, 75/25: à nossa escolha).
+   - **Avaliação:** prefere **validação cruzada** a uma só divisão 70/15/15, para usar o dataset todo (é pequeno).
+   - **Regra de agregação e época:** escolha nossa, mas mostrada e justificada no relatório e na apresentação. No
+     bónus o objetivo é a maior WA.
+   - **Ensemble no bónus:** permitido ("best model" no guião pode induzir em erro).
+   - **Correr o código:** pode correr, mas não conta para a nota.
+6. **Avaliação final** (confirmada com o professor: validação cruzada em todos os dados, por o dataset ser pequeno;
+   script `src/run_cv.py`, testado com dados falsos):
+   1. Correr `src.compare_rules` no desktop e **congelar a regra** antes de tudo o resto.
+   2. **Validação cruzada estratificada por paciente, 5 folds, nos 942 pacientes** (treino + validação + teste
+      antigos). Em cada fold, o fold de fora (~188 pacientes) é o teste; dos restantes ~754, 15% são validação interna,
+      usada só para escolher a época (menor loss). Configuração congelada: `cnn_wmetric` e `rnn_wmetric`, pesos
+      5/3/1, a regra escolhida. 3 seeds por fold e por rede (~30 treinos, ~1-1.5 h na GPU).
+   3. Reportar a **WA média ± desvio entre folds** e a **matriz de confusão por paciente** com as previsões fora do
+      fold (cada um dos 942 pacientes é previsto uma vez, por um modelo que não o viu). O script também mostra o
+      ensemble das 3 seeds em cada fold (é o que se usa no bónus).
+      A normalização das features é recalculada no treino de cada fold; os folds ficam em `data/cv_folds.csv`.
+   4. **Porque não viola "o teste não se usa para decisões":** todas as escolhas (arquitetura, pesos, regra, critério
+      da época) foram feitas antes, só com a validação antiga. A validação cruzada é só medição: nada muda depois de
+      ver os seus resultados.
+   5. **Bónus:** RNN retreinada com 85% dos 942 pacientes (15% para a época), ensemble de 5 seeds, regra escolhida.
+7. **Fecho (30/11):** slides em PDF (10 min); zip do código; CSV do bónus; autoavaliação.
 
 ### Ideias para as experiências
 

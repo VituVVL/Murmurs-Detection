@@ -18,7 +18,8 @@ Grupo **PL2 G05**: Victor, Rodrigo, Marvin. Registo detalhado de tudo o que foi 
 - Responder em **português** (o Victor escreve em português do Brasil; a documentação do repositório está em
   português europeu). Explicar o porquê das escolhas: o Victor tem de saber explicar tudo na apresentação.
 - **Não fazer commit nem push sem aprovação do Victor.** Mensagens de commit em português.
-- **O teste só se usa uma vez**, no fim, com as configurações já escolhidas na validação.
+- **O teste só se usa uma vez**, no fim, com as configurações já escolhidas na validação. Na validação cruzada
+  final (ver plano), cada fold de teste é previsto uma só vez e nenhuma decisão muda depois de ver esses resultados.
 - Treinos na GPU do desktop do Victor (RTX 5060). Os pesos e as probabilidades das corridas ficam em `runs/` (fora
   do git, só existem no desktop); a cache das features fica em `data/cache/` (fora do git).
 
@@ -34,7 +35,7 @@ Grupo **PL2 G05**: Victor, Rodrigo, Marvin. Registo detalhado de tudo o que foi 
 |---|---|---|
 | 26/11 | Cache das features; baselines CNN e RNN com 5 seeds na GPU; pesos de classe e regra de agregação | feito (notebook 05) |
 | 27/11 | Variantes CNN (SpecAugment, audible) e RNN (LSTM, deltas, log-mel, 128 unidades, audible) com 5 seeds; escolher a configuração final | feito (notebook 06) |
-| 28/11 | Avaliação única no teste (WA + matriz por paciente, as duas redes); script do bónus; README com instruções | por fazer |
+| 28/11 | (1) `src.compare_rules` no desktop e congelar a regra (`RULE` em `src/run_cv.py`); (2) `src.run_cv`: validação cruzada 5 folds nos 942 pacientes, as duas redes (WA + matriz por paciente); (3) bónus: RNN retreinada com 85/15 dos 942, ensemble de seeds; README | por fazer (scripts 1 e 2 prontos) |
 | 29/11 | Slides em PDF (10 min + apêndice); ensaiar a explicação com o grupo | por fazer |
 | 30/11 | Folga; zip do código (sem dataset, sem `runs/`, sem este ficheiro); autoavaliação; submissão | por fazer |
 
@@ -54,8 +55,19 @@ Grupo **PL2 G05**: Victor, Rodrigo, Marvin. Registo detalhado de tudo o que foi 
   RNN 0.761).
 - **Configuração final:** `cnn_wmetric` e `rnn_wmetric` em `src/run_seeds.py` (as 5 seeds já treinadas em `runs/`),
   regra `mean`, época de cada seed pela menor loss da validação (toda a validação). A RNN é o melhor modelo.
-- **Próximo passo (28/11):** avaliar no teste as duas redes uma só vez (média ± desvio das 5 seeds, matriz por
-  paciente somada e de uma seed); script do bónus com a RNN. Para o bónus, por omissão, ensemble das 5 seeds da RNN,
-  a confirmar com a resposta do professor (pergunta 4 de `Arquivos/duvidas.txt`).
-- Dúvidas para o professor (aula de 27/11) em `Arquivos/duvidas.txt`: retreinar com treino + validação para o bónus,
-  5 seeds vs. validação cruzada, ensemble no bónus, se o professor corre o código.
+- **Respostas do professor (aula de 27/11, `Arquivos/duvidas.txt`):** (1) para o bónus, retreinar com mais dados,
+  incluindo o teste, guardando uma parte para validação (85/15, 80/20... à nossa escolha); (2) prefere **validação
+  cruzada** a uma só divisão, para usar o dataset todo; (3) regra de agregação e época: escolha nossa, mas mostrada
+  e justificada; no bónus o objetivo é a maior WA; (4) ensemble no bónus é permitido; (9) pode correr o código, mas
+  não conta para a nota.
+- **Regra de agregação:** com a mesma época (menor loss), a `mean` ganha à `any` (CNN 0.744 vs 0.719, RNN 0.760 vs
+  0.728, `results/seeds_criterios_regras.csv`). Falta ver se perde *Present* de um só local: `uv run python -m
+  src.compare_rules` no desktop (só validação). Decidir a regra **antes** da validação cruzada.
+- **Avaliação final (confirmada com o professor, opção B; script `src/run_cv.py`):** validação cruzada estratificada por paciente, 5 folds
+  nos 942 pacientes (treino + validação + teste antigos). Em cada fold: o fold de fora é o teste (~188 pacientes);
+  dos restantes, 15% servem de validação interna só para escolher a época (menor loss). Configuração congelada
+  (`cnn_wmetric` / `rnn_wmetric`, pesos 5/3/1, regra escolhida). Reportar WA média ± desvio entre folds e a matriz
+  por paciente das previsões fora do fold (cada paciente previsto uma vez). Seeds: 3 por fold (~30 treinos, ~1-1.5 h
+  na GPU). As decisões anteriores (notebooks 05/06) foram tomadas só com a validação antiga, por isso a validação
+  cruzada é só medição.
+- **Bónus:** RNN retreinada com 85% dos 942 pacientes (15% para a época), ensemble de 5 seeds, regra escolhida.
