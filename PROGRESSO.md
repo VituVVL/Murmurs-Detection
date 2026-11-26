@@ -335,6 +335,35 @@ Para não ser otimista, a época é escolhida numa metade dos pacientes da valid
   modelos: regra `mean` e época pela loss da validação.
 - **A RNN fica à frente da CNN** e é muito mais estável entre épocas. (Em CPU tinha parado cedo, na época 12.)
 
+### Variantes com 5 seeds (`notebooks/06_variantes.ipynb`, 27/11)
+
+Uma mudança de cada vez em relação às referências (`cnn_wmetric`, `rnn_wmetric`), todas com pesos 5/3/1, avaliadas
+com a configuração comum (regra `mean`, época pela loss da validação, WA justa). Definidas em `src/run_seeds.py`.
+
+| Experiência | Mudança | WA justa (5 seeds) |
+|---|---|---|
+| **`cnn_wmetric`** | referência CNN | **0.744 ± 0.027** |
+| `cnn_specaug` | SpecAugment no treino | 0.726 ± 0.013 |
+| `cnn_audible` | sem as janelas *Present* com sopro não audível no local | 0.704 ± 0.015 |
+| **`rnn_wmetric`** | referência RNN (GRU 2×64, 13 MFCC) | **0.760 ± 0.023** |
+| `rnn_h128` | 128 unidades por direção (408 mil parâmetros) | 0.740 ± 0.018 |
+| `rnn_audible` | sem as janelas *Present* com sopro não audível no local | 0.735 ± 0.018 |
+| `rnn_mel` | log-mel (64 bandas) em vez de MFCC | 0.733 ± 0.056 |
+| `rnn_delta` | MFCC + deltas (39 features) | 0.732 ± 0.014 |
+| `rnn_lstm` | LSTM em vez de GRU | 0.720 ± 0.026 |
+
+- **Nenhuma variante melhorou as referências** (−0.02 a −0.04, da ordem do desvio entre seeds).
+- **SpecAugment** acaba com o overfitting da CNN (a loss da validação fica em ~1 até à época 40, em vez de subir até
+  2–4) e torna-a mais estável, mas não sobe a WA.
+- **`murmur_audible`** muda o tipo de erro e não o total: na CNN mais *Absent* dados como *Present*; na RNN menos,
+  mas perde *Present* (que valem 5).
+- **RNN:** mais features ou mais capacidade não ajudam; todas atingem a menor loss da validação nas épocas 3–5 e
+  depois fazem overfitting. O limite são os ~650 pacientes de treino.
+- **Ensemble das 5 seeds:** quase não muda as referências (CNN 0.749, RNN 0.761).
+
+**Configuração final** (escolhida só com a validação): `cnn_wmetric` e `rnn_wmetric`, regra `mean`, época pela menor
+loss da validação. No teste: média ± desvio das 5 seeds e matriz de confusão por paciente.
+
 ---
 
 ## 10. Próximos passos

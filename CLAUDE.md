@@ -33,7 +33,7 @@ Grupo **PL2 G05**: Victor, Rodrigo, Marvin. Registo detalhado de tudo o que foi 
 | Dia | Tarefa | Estado |
 |---|---|---|
 | 26/11 | Cache das features; baselines CNN e RNN com 5 seeds na GPU; pesos de classe e regra de agregação | feito (notebook 05) |
-| 27/11 | Variantes CNN (SpecAugment, audible) e RNN (LSTM, deltas, log-mel, 128 unidades, audible) com 5 seeds; escolher a configuração final | em curso (notebook 06) |
+| 27/11 | Variantes CNN (SpecAugment, audible) e RNN (LSTM, deltas, log-mel, 128 unidades, audible) com 5 seeds; escolher a configuração final | feito (notebook 06) |
 | 28/11 | Avaliação única no teste (WA + matriz por paciente, as duas redes); script do bónus; README com instruções | por fazer |
 | 29/11 | Slides em PDF (10 min + apêndice); ensaiar a explicação com o grupo | por fazer |
 | 30/11 | Folga; zip do código (sem dataset, sem `runs/`, sem este ficheiro); autoavaliação; submissão | por fazer |
@@ -49,5 +49,13 @@ Grupo **PL2 G05**: Victor, Rodrigo, Marvin. Registo detalhado de tudo o que foi 
   agregação `mean` (média das probabilidades das gravações do paciente), época pela menor loss da validação.
   Com ela: **CNN 0.744 ± 0.027, RNN (GRU) 0.760 ± 0.023** (WA justa na validação, 5 seeds).
 - Os pesos de classe da métrica foram a melhoria mais clara (+0.05 na CNN, +0.08 na RNN).
+- **Variantes (notebook 06): nenhuma melhorou as referências** (SpecAugment, filtro `murmur_audible`, LSTM, deltas do
+  MFCC, RNN sobre log-mel, 128 unidades: todas 0.02 a 0.04 abaixo). Ensemble das 5 seeds quase igual (CNN 0.749,
+  RNN 0.761).
+- **Configuração final:** `cnn_wmetric` e `rnn_wmetric` em `src/run_seeds.py` (as 5 seeds já treinadas em `runs/`),
+  regra `mean`, época de cada seed pela menor loss da validação (toda a validação). A RNN é o melhor modelo.
+- **Próximo passo (28/11):** avaliar no teste as duas redes uma só vez (média ± desvio das 5 seeds, matriz por
+  paciente somada e de uma seed); script do bónus com a RNN. Para o bónus, por omissão, ensemble das 5 seeds da RNN,
+  a confirmar com a resposta do professor (pergunta 4 de `Arquivos/duvidas.txt`).
 - Dúvidas para o professor (aula de 27/11) em `Arquivos/duvidas.txt`: retreinar com treino + validação para o bónus,
   5 seeds vs. validação cruzada, ensemble no bónus, se o professor corre o código.
