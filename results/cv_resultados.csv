@@ -1,0 +1,3 @@
+exp,rule,seeds,wa_folds_media,wa_folds_desvio,wa_ensemble_folds_media,wa_ensemble_folds_desvio,wa_oof_ensemble,recall_Present,recall_Unknown,recall_Absent
+cnn_wmetric,mean,3,0.742,0.022,0.757,0.029,0.757,0.804,0.044,0.905
+rnn_wmetric,mean,3,0.768,0.023,0.771,0.023,0.771,0.827,0.074,0.905

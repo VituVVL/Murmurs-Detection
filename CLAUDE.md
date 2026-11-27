@@ -35,7 +35,7 @@ Grupo **PL2 G05**: Victor, Rodrigo, Marvin. Registo detalhado de tudo o que foi 
 |---|---|---|
 | 26/11 | Cache das features; baselines CNN e RNN com 5 seeds na GPU; pesos de classe e regra de agregação | feito (notebook 05) |
 | 27/11 | Variantes CNN (SpecAugment, audible) e RNN (LSTM, deltas, log-mel, 128 unidades, audible) com 5 seeds; escolher a configuração final | feito (notebook 06) |
-| 28/11 | (1) `src.compare_rules` no desktop e congelar a regra (`RULE` em `src/run_cv.py`); (2) `src.run_cv`: validação cruzada 5 folds nos 942 pacientes, as duas redes (WA + matriz por paciente); (3) bónus: RNN retreinada com 85/15 dos 942, ensemble de seeds; README | por fazer (scripts 1 e 2 prontos) |
+| 28/11 | (1) `src.compare_rules` no desktop e congelar a regra (`RULE` em `src/run_cv.py`); (2) `src.run_cv`: validação cruzada 5 folds nos 942 pacientes, as duas redes (WA + matriz por paciente); (3) bónus: RNN retreinada com 85/15 dos 942, ensemble de seeds; README | (1) feito: regra `mean`; (2) feito: RNN 0.768; (3) bónus por validação cruzada (`src/run_bonus.py`); README por fazer |
 | 29/11 | Slides em PDF (10 min + apêndice); ensaiar a explicação com o grupo | por fazer |
 | 30/11 | Folga; zip do código (sem dataset, sem `runs/`, sem este ficheiro); autoavaliação; submissão | por fazer |
 
@@ -61,8 +61,9 @@ Grupo **PL2 G05**: Victor, Rodrigo, Marvin. Registo detalhado de tudo o que foi 
   e justificada; no bónus o objetivo é a maior WA; (4) ensemble no bónus é permitido; (9) pode correr o código, mas
   não conta para a nota.
 - **Regra de agregação:** com a mesma época (menor loss), a `mean` ganha à `any` (CNN 0.744 vs 0.719, RNN 0.760 vs
-  0.728, `results/seeds_criterios_regras.csv`). Falta ver se perde *Present* de um só local: `uv run python -m
-  src.compare_rules` no desktop (só validação). Decidir a regra **antes** da validação cruzada.
+  0.728, `results/seeds_criterios_regras.csv`). `src.compare_rules` (26/11, `results/regras_agregacao.csv`): a `mean`
+  perde ~3 *Present* por seed mas a `any` dá ~23 *Absent* como *Present*; nos pacientes em que discordam a `mean` ganha
+  mais WA (CNN 123 vs 95, RNN 158 vs 80 pontos). **Regra congelada: `mean`.**
 - **Avaliação final (confirmada com o professor, opção B; script `src/run_cv.py`):** validação cruzada estratificada por paciente, 5 folds
   nos 942 pacientes (treino + validação + teste antigos). Em cada fold: o fold de fora é o teste (~188 pacientes);
   dos restantes, 15% servem de validação interna só para escolher a época (menor loss). Configuração congelada
@@ -70,4 +71,7 @@ Grupo **PL2 G05**: Victor, Rodrigo, Marvin. Registo detalhado de tudo o que foi 
   por paciente das previsões fora do fold (cada paciente previsto uma vez). Seeds: 3 por fold (~30 treinos, ~1-1.5 h
   na GPU). As decisões anteriores (notebooks 05/06) foram tomadas só com a validação antiga, por isso a validação
   cruzada é só medição.
-- **Bónus:** RNN retreinada com 85% dos 942 pacientes (15% para a época), ensemble de 5 seeds, regra escolhida.
+- **Resultado da validação cruzada (26/11, `results/cv_resultados.csv`):** CNN 0.742 ± 0.022 (ensemble 0.757),
+  **RNN 0.768 ± 0.023 (ensemble 0.771)**. Recall Unknown muito baixo (0.04-0.07): a fraqueza a mostrar.
+- **Bónus (`src/run_bonus.py`):** ensemble por validação cruzada (mesmos 5 folds; modelo k treina nos outros 4 e
+  escolhe a época no fold k), RNN, 3 seeds por fold = 15 modelos, regra `mean` → `PL2_G05_test_results.csv`.

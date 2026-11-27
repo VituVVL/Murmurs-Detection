@@ -383,7 +383,23 @@ Com o critério da configuração final (época pela menor loss, que é a mesma 
 (O 0.768 da `any` na RNN, na tabela do notebook 05, usa outro critério de época, a WA; não é a mesma comparação.)
 `src/compare_rules.py` acrescenta o recall por classe, as matrizes por paciente e os pacientes em que `any` e `mean`
 discordam, para ver se a `mean` perde *Present*. Corre sobre `runs/` (só no desktop):
-`uv run python -m src.compare_rules`. Resultado: por correr.
+`uv run python -m src.compare_rules`.
+
+**Resultado (corrido a 26/11 no desktop, `results/regras_agregacao.csv`):** a `mean` confirma-se e fica
+**congelada** para a validação cruzada e para o bónus.
+
+| | regra | WA justa | recall Present | recall Unknown | recall Absent |
+|---|---|---|---|---|---|
+| CNN | `any` | 0.717 ± 0.027 | 0.933 | 0.28 | 0.604 |
+| CNN | `mean` | **0.746 ± 0.027** | 0.815 | 0.20 | 0.832 |
+| RNN | `any` | 0.725 ± 0.013 | 0.911 | 0.40 | 0.550 |
+| RNN | `mean` | **0.762 ± 0.022** | 0.815 | 0.30 | 0.851 |
+
+A objeção tinha fundamento: a `mean` perde de facto alguns *Present* (somando as 5 seeds, 16 na CNN e 15 na RNN,
+cerca de 3 dos 27 *Present* da validação por seed). Mas a `any` dá como *Present* muitos *Absent* (110 na CNN, 121 na
+RNN, somados nas 5 seeds), porque basta uma gravação errada. Nos pacientes em que as duas discordam, a `mean` ganha
+mais pontos da WA apesar do peso 5 dos *Present*: CNN 123 contra 95, RNN 158 contra 80 (soma dos pesos). Ou seja,
+o peso 5 não chega para compensar o número de falsos *Present* da `any`.
 
 ---
 
@@ -421,7 +437,31 @@ discordam, para ver se a `mean` perde *Present*. Corre sobre `runs/` (só no des
    4. **Porque não viola "o teste não se usa para decisões":** todas as escolhas (arquitetura, pesos, regra, critério
       da época) foram feitas antes, só com a validação antiga. A validação cruzada é só medição: nada muda depois de
       ver os seus resultados.
-   5. **Bónus:** RNN retreinada com 85% dos 942 pacientes (15% para a época), ensemble de 5 seeds, regra escolhida.
+   5. **Resultado (corrido a 26/11 no desktop, ~45 min na GPU; `results/cv_resultados.csv`, `cv_por_fold.csv`,
+      `cv_matriz_<exp>.csv`):**
+
+      | | WA entre folds (média das 3 seeds) | WA ensemble das 3 seeds | recall Present | recall Unknown | recall Absent |
+      |---|---|---|---|---|---|
+      | CNN (`cnn_wmetric`) | 0.742 ± 0.022 | 0.757 ± 0.029 | 0.804 | 0.044 | 0.905 |
+      | RNN (`rnn_wmetric`) | **0.768 ± 0.023** | **0.771 ± 0.023** | 0.827 | 0.074 | 0.905 |
+
+      (recall do ensemble, nas previsões fora do fold dos 942 pacientes.) Os números confirmam os da validação antiga
+      (CNN 0.744, RNN 0.760): as escolhas não estavam sobreajustadas à validação. A RNN continua a melhor. O ensemble
+      das seeds ajuda mais a CNN (+0.015) do que a RNN (+0.003). **Fraqueza principal: o *Unknown*** (5 de 68
+      acertados pela RNN; a maioria vai para *Absent*). Matriz por paciente da RNN, ensemble, 942 pacientes
+      (linhas = previsto, colunas = verdadeiro):
+
+      | | Present | Unknown | Absent |
+      |---|---|---|---|
+      | Present | 148 | 17 | 55 |
+      | Unknown | 0 | 5 | 11 |
+      | Absent | 31 | 46 | 629 |
+   6. **Bónus (`src/run_bonus.py`, decidido a 26/11 em vez da divisão 85/15):** ensemble por validação cruzada com os
+      mesmos 5 folds. O modelo k treina com os outros 4 folds (~80% dos 942) e usa o fold k só para escolher a época
+      (menor loss); 3 seeds por fold, 15 modelos da RNN; média das probabilidades e regra `mean`. Porquê: cada
+      paciente entra no treino de 4 dos 5 modelos, a época não depende de uma só fatia, e os modelos viram dados
+      diferentes (ensemble mais variado do que só mudar a seed, que quase não ajudou). A WA nos folds deste script é
+      otimista (época escolhida no próprio fold); a estimativa a reportar é a da validação cruzada acima.
 7. **Fecho (30/11):** slides em PDF (10 min); zip do código; CSV do bónus; autoavaliação.
 
 ### Ideias para as experiências

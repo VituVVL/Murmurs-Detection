@@ -21,7 +21,7 @@ Avaliação (as mais importantes: mudam o que reportamos)
    b) A "mean" não segue a lógica do rótulo (um sopro ouvido só num local fica diluído na média), mas deu
       melhor WA na validação. Justifica-se pelo resultado, ou devíamos usar a "any" por ser a regra clínica?
    Resposta: Podemos fazer o que julgarmos melhor, mas tem de ser mostrado e justificado tanto em relatórios quanto na apresentação.
-   No bonus, é como se fosse um jogo, nosso objetivo é ter maior WA, então devemos fazer o que julgarmos que terá maior WA.
+   No bonus, é como se fosse um jogo, o nosso objetivo é ter maior WA, então devemos fazer o que julgarmos que terá maior WA.
 
 Bónus
 4. Podemos usar um ensemble no bónus (média das 5 seeds, ou CNN + RNN juntas)?

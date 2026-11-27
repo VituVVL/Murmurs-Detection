@@ -12,10 +12,35 @@ O que já foi feito, as decisões tomadas e os próximos passos estão em [`PROG
 ```
 Arquivos/    guião do projeto e anotações da aula
 data/        dataset CirCor em data/circor/ (não vai para o git) e split.csv (vai)
-notebooks/   exploração dos dados e um notebook por modelo
-src/         código usado por todos os notebooks (dados e métrica)
-results/     figuras, matrizes de confusão e CSV do bónus
+notebooks/   01 exploração, 02 pré-processamento, 03 CNN, 04 RNN, 05 seeds e agregação, 06 variantes
+src/         código partilhado (dados, features, modelos, treino, métrica) e os scripts finais
+results/     figuras, tabelas e matrizes de confusão
+runs/        pesos/probabilidades das corridas (gerado pelos scripts, não vai para o git)
 ```
+
+## Reproduzir os resultados finais
+
+Precisa do dataset em `data/circor/` e, para o bónus, dos dados sem rótulo em `data/CirCor_test_students/test_data/`.
+Corre em CPU, mas é muito mais rápido com uma GPU NVIDIA (`uv sync` instala o torch com CUDA). Tempos numa RTX 5060.
+As features são calculadas na primeira corrida e guardadas em `data/cache/`.
+
+```bash
+uv sync
+# 1. Configurações candidatas, 5 seeds na divisão 70/15/15 (análise nos notebooks 05 e 06)
+uv run python -m src.run_seeds --exp cnn_wmetric rnn_wmetric --seeds 42 1 2 3 4
+# 2. Regra de agregação por paciente com a mesma época (só validação) -> results/regras_agregacao.csv
+uv run python -m src.compare_rules
+# 3. Avaliação final: validação cruzada 5 folds nos 942 pacientes, CNN e RNN, 3 seeds (~45 min)
+#    -> results/cv_resultados.csv, cv_por_fold.csv, cv_matriz_<modelo>.csv
+uv run python -m src.run_cv
+# 4. Bónus: ensemble de 15 RNN (5 folds x 3 seeds) -> PL2_G05_test_results.csv (~12 min)
+uv run python -m src.run_bonus
+```
+
+Configuração final: RNN (GRU bidirecional sobre MFCC de janelas de 5 s), pesos de classe 5/3/1 (os da métrica),
+época pela menor loss da validação, previsão por paciente pela média das probabilidades das suas gravações (`mean`).
+Os scripts saltam os treinos que já existem em `runs/`; `--report` (em `run_cv`) e `--predict-only` (em `run_bonus`)
+só refazem as tabelas/o CSV.
 
 ## Ambiente
 
